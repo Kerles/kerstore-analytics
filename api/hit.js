@@ -1,4 +1,5 @@
-import fetch from 'node-fetch';
+// CommonJS version for Vercel Serverless
+const fetch = (...args) => import('node-fetch').then(m => m.default(...args));
 
 const REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -16,18 +17,25 @@ async function upstashCommand(commands) {
   return res.json();
 }
 
-export default async function handler(req, res) {
+module.exports = async function (req, res) {
   try {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+    if (req.method !== 'POST') {
+      res.statusCode = 405;
+      return res.end(JSON.stringify({ ok: false, error: 'Method Not Allowed' }));
+    }
 
-    // opcional: você pode receber { path } no body e registrar por rota
+    // optional: read body JSON (e.g., { path })
+    // increment key
     await upstashCommand([['INCR', KEY]]);
     const result = await upstashCommand([['GET', KEY]]);
-    const value = result?.result?.[0] ?? null;
+    const value = result?.result?.[0] ?? 0;
 
-    return res.status(200).json({ ok: true, value: Number(value) });
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify({ ok: true, value: Number(value) }));
   } catch (e) {
     console.error(e);
-    return res.status(500).json({ ok: false, error: e.message });
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify({ ok: false, error: e.message }));
   }
-}
+};
