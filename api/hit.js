@@ -1,5 +1,4 @@
-// CommonJS on Node 24 (Vercel) — usa fetch global
-const { trackEvent } = require('@vercel/analytics/server');
+// CommonJS on Node 24 (Vercel)
 const REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const KEY = 'kerstore_hits_total';
@@ -13,10 +12,21 @@ async function upstashCommand(commands) {
     },
     body: JSON.stringify({ commands })
   });
-  return res.json();
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data };
 }
 
 module.exports = async function (req, res) {
+  const ALLOWED_ORIGIN = 'https://kerles.github.io/KerStore/';
+  res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGIN);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.statusCode = 204;
+    return res.end();
+  }
+
   try {
     if (req.method !== 'POST') {
       res.statusCode = 405;
@@ -25,24 +35,20 @@ module.exports = async function (req, res) {
       return res.end(JSON.stringify({ ok: false, error: 'Method Not Allowed' }));
     }
 
-    // Track hit event with Vercel Analytics
-    try {
-      await trackEvent('api_hit', {
-        timestamp: new Date().toISOString(),
-        endpoint: '/api/hit'
-      });
-    } catch (analyticsError) {
-      console.warn('Analytics tracking error:', analyticsError);
+    const cmd = [['INCR', KEY], ['GET', KEY]];
+    const { ok, status, data } = await upstashCommand(cmd);
+
+    if (!ok) {
+      console.error('Upstash error', status, data);
+      res.statusCode = status || 502;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ ok: false, error: 'Upstash request failed', details: data }));
     }
 
-    // increment key
-    await upstashCommand([['INCR', KEY]]);
-    const result = await upstashCommand([['GET', KEY]]);
-    const value = result?.result?.[0] ?? 0;
-
+    const value = Array.isArray(data?.result) ? Number(data.result[1]) : 0;
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
-    return res.end(JSON.stringify({ ok: true, value: Number(value) }));
+    return res.end(JSON.stringify({ ok: true, value }));
   } catch (e) {
     console.error(e);
     res.statusCode = 500;
