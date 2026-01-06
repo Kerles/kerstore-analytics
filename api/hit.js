@@ -1,4 +1,5 @@
 // CommonJS on Node 24 (Vercel) — usa fetch global
+const { trackEvent } = require('@vercel/analytics/server');
 const REST_URL = process.env.UPSTASH_REDIS_REST_URL;
 const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const KEY = 'kerstore_hits_total';
@@ -22,6 +23,16 @@ module.exports = async function (req, res) {
       res.setHeader('Allow', 'POST');
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({ ok: false, error: 'Method Not Allowed' }));
+    }
+
+    // Track hit event with Vercel Analytics
+    try {
+      await trackEvent('api_hit', {
+        timestamp: new Date().toISOString(),
+        endpoint: '/api/hit'
+      });
+    } catch (analyticsError) {
+      console.warn('Analytics tracking error:', analyticsError);
     }
 
     // increment key

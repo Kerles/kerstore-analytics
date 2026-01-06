@@ -1,4 +1,7 @@
 {
   "name": "kerstore-analytics",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "dependencies": {
+    "@vercel/analytics": "^1.4.0"
+  }
 }
