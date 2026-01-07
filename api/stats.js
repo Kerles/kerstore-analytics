@@ -1,6 +1,6 @@
 // CommonJS on Node 24 (Vercel)
-const REST_URL = process.env.UPSTASH_REDIS_REST_URL;
-const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+const REST_URL = process.env.KS_KV_REST_API_URL || process.env.KS_REDIS_URL;
+const REST_TOKEN = process.env.KS_KV_REST_API_TOKEN; 
 const KEY = 'kerstore_hits_total';
 
 async function upstashCommand(commands) {
@@ -33,6 +33,12 @@ module.exports = async function (req, res) {
       res.setHeader('Allow', 'GET');
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({ ok: false, error: 'Method Not Allowed' }));
+    }
+
+    if (!REST_URL || !REST_TOKEN) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ ok: false, error: 'Upstash env vars not configured' }));
     }
 
     const { ok, status, data } = await upstashCommand([['GET', KEY]]);
