@@ -1,4 +1,4 @@
-// api/hit.js
+// hit.js
 const REST_URL = (process.env.UPSTASH_REDIS_REST_URL || '').replace(/\/+$/, '');
 const REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const KEY = 'kerstore_hits_total';
@@ -8,9 +8,9 @@ async function upstashCommand(cmdArray) {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${REST_TOKEN}`,
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ cmd: cmdArray }),
+    body: JSON.stringify({ cmd: cmdArray })
   });
   const data = await res.json();
   return { ok: res.ok, status: res.status, data };
@@ -41,15 +41,14 @@ module.exports = async function (req, res) {
   try {
     const incr = await upstashCommand(['INCR', KEY]);
     if (!incr.ok) {
-      console.error('Upstash INCR error', incr.status, incr.data);
       res.statusCode = incr.status || 502;
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({ ok: false, error: 'Upstash INCR failed', details: incr.data }));
     }
 
+    // read new value
     const get = await upstashCommand(['GET', KEY]);
     if (!get.ok) {
-      console.error('Upstash GET error', get.status, get.data);
       res.statusCode = get.status || 502;
       res.setHeader('Content-Type', 'application/json');
       return res.end(JSON.stringify({ ok: false, error: 'Upstash GET failed', details: get.data }));
@@ -60,7 +59,6 @@ module.exports = async function (req, res) {
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ ok: true, value }));
   } catch (e) {
-    console.error(e);
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
     return res.end(JSON.stringify({ ok: false, error: e.message }));
